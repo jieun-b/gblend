@@ -1,0 +1,6 @@
+[submodule "gblend_server/gaussian-splatting"]
+	path = gblend_server/gaussian-splatting
+	url = https://github.com/graphdeco-inria/gaussian-splatting
+[submodule "gblend_server/Grounded-SAM-2"]
+	path = gblend_server/Grounded-SAM-2
+	url = https://github.com/IDEA-Research/Grounded-Segment-Anything

@@ -1,11 +1,10 @@
 import os
 import bpy
 import json
-import numpy as np
 
 from .animate import add_camera_animation
 from .utils import add_camera_object, load_background_image
-from ..shared import add_collection
+from ..utils import add_collection
 
 def add_cameras(cam_dicts, parent_collection, add_background_images=False, camera_collection_name="Cameras"):
     camera_collection = add_collection(camera_collection_name, parent_collection)
@@ -20,7 +19,7 @@ def add_cameras(cam_dicts, parent_collection, add_background_images=False, camer
                 load_background_image(bg_image, cam_obj)
 
 
-def setup_cameras(json_path, image_dir, parent_collection, add_camera_motion_as_animation=False):
+def setup_cameras(json_path, image_dir, parent_collection):
     with open(json_path, 'r') as f:
         camera_data = json.load(f)
 
@@ -41,7 +40,29 @@ def setup_cameras(json_path, image_dir, parent_collection, add_camera_motion_as_
         }
         cam_dicts.append(cam_dict)
 
+    scene_settings = bpy.context.scene.gblend_scene_settings
+    if scene_settings.frame_end == 0:
+        scene_settings.frame_end = len(cam_dicts)
+        
     add_cameras(cam_dicts, parent_collection, add_background_images=True)
 
-    if add_camera_motion_as_animation:
-        add_camera_animation(cam_dicts, parent_collection)
+
+def setup_animated_camera(cameras, animated_camera=None):
+    scene_settings = bpy.context.scene.gblend_scene_settings
+    stride = scene_settings.stride
+    frame_start = scene_settings.frame_start
+    frame_end = scene_settings.frame_end
+    number_interpolation_frames = scene_settings.interpolation_frames
+
+    filtered_cameras = [
+        cam for i, cam in enumerate(cameras)
+        if frame_start <= (i + 1) <= frame_end  # 1-based index
+    ]
+
+    sampled_cameras = [cam for i, cam in enumerate(filtered_cameras) if i % stride == 0]
+
+    add_camera_animation(sampled_cameras, animated_camera, number_interpolation_frames=number_interpolation_frames)
+
+    animated_camera = bpy.data.objects.get("Animated Camera")
+    if animated_camera:
+        bpy.context.scene.camera = animated_camera

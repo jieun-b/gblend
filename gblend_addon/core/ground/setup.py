@@ -11,10 +11,11 @@ from .utils import (
     translate_object_along_z,
     get_camera_ray_from_pixel
 )
-from .vis import visualize_points, draw_sampled_points, draw_rays_from_pixels
-from .ransac_utils import fit_ransac_plane_3D
+from .vis import show_points, draw_points, draw_rays
+from .ransac import fit_ransac_plane_3D
+from ..camera.setup import setup_animated_camera
 
-def estimate_ground_z(obj, percentile=20):
+def compute_ground_z(obj, percentile=20):
     verts = [obj.matrix_world @ v.co for v in obj.data.vertices]
     z_values = np.array([v.z for v in verts])
     threshold = np.percentile(z_values, percentile)
@@ -27,15 +28,15 @@ def estimate_ground_z(obj, percentile=20):
     ground_z = np.median(z_filtered)
     return ground_z
 
-def filter_dense_points(points, radius=0.3, min_neighbors=8):
-        tree = cKDTree(points)
-        mask = np.array([
-            len(tree.query_ball_point(p, r=radius)) >= min_neighbors
-            for p in points
-        ])
-        return points[mask]
+def filter_points(points, radius=0.3, min_neighbors=8):
+    tree = cKDTree(points)
+    mask = np.array([
+        len(tree.query_ball_point(p, r=radius)) >= min_neighbors
+        for p in points
+    ])
+    return points[mask]
 
-def sample_ground_points_from_mask(obj, cam, mask, max_points_per_mask=100, radius=0.5):
+def sample_points_from_mask(obj, cam, mask, max_points_per_mask=100, radius=0.5):
     if not isinstance(mask, np.ndarray):
         print("[WARN] Mask is not a numpy array")
         return []
@@ -82,7 +83,7 @@ def sample_ground_points_from_mask(obj, cam, mask, max_points_per_mask=100, radi
         print("[WARN] No candidate points found")
         return candidate_points
 
-    filtered_points = filter_dense_points(candidate_points, radius=0.3, min_neighbors=8)
+    filtered_points = filter_points(candidate_points, radius=0.3, min_neighbors=8)
 
     print(f"[INFO] Number of candidate_points before filtering: {len(candidate_points)}")
     print(f"[INFO] Number of candidate_points after filtering: {len(filtered_points)}")
@@ -90,7 +91,7 @@ def sample_ground_points_from_mask(obj, cam, mask, max_points_per_mask=100, radi
     return filtered_points
 
 
-def extract_candidates_from_mask(obj, cameras, mask_dict):
+def extract_points_from_mask(obj, cameras, mask_dict):
     all_candidates = []
 
     camera_dict = {
@@ -112,7 +113,7 @@ def extract_candidates_from_mask(obj, cameras, mask_dict):
             print(f"[WARN] Failed to read mask: {mask_path} ({e})")
             continue
 
-        candidates = sample_ground_points_from_mask(obj, cam, mask)
+        candidates = sample_points_from_mask(obj, cam, mask)
         all_candidates.extend(candidates)
 
     print(f"[INFO] Total candidate points from masks: {len(all_candidates)}")
@@ -127,7 +128,7 @@ def setup_ground(cameras, animated_camera=None, obj_name="point_cloud", mask_dic
 
     if mask_dict:
         print(f"[INFO] Extracting candidate points from masks...")
-        candidate_points = extract_candidates_from_mask(obj, cameras, mask_dict)
+        candidate_points = extract_points_from_mask(obj, cameras, mask_dict)
     else:
         candidate_points = []
 
@@ -143,9 +144,9 @@ def setup_ground(cameras, animated_camera=None, obj_name="point_cloud", mask_dic
     apply_rotation_to_object(obj, rot_mat)
 
     candidate_points = apply_rotation_to_points(candidate_points, rot_mat)
-    # visualize_points(candidate_points)
+    # show_points(candidate_points)
 
-    mean_z = estimate_ground_z(obj)
+    mean_z = compute_ground_z(obj)
     translate_object_along_z(obj, mean_z)
 
     for cam_obj in cameras:
@@ -155,3 +156,6 @@ def setup_ground(cameras, animated_camera=None, obj_name="point_cloud", mask_dic
     if animated_camera:
         animated_camera.matrix_world = rot_mat @ animated_camera.matrix_world
         animated_camera.location.z -= mean_z
+        bpy.context.view_layer.update()
+        
+        setup_animated_camera(cameras, animated_camera)

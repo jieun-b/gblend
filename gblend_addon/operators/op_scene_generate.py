@@ -1,25 +1,30 @@
+import bpy
+
 import os
 import uuid
 import shutil
 import zipfile
 import requests
-import bpy
 
 from ..utils import on_gaussian_folder_changed
 
-class GBLEND_OT_generate_scene(bpy.types.Operator):
+class GBLEND_OT_scene_generate(bpy.types.Operator):
     bl_idname = "gblend.generate_scene"
     bl_label = "Generate Scene from 3D Gaussian Splatting"
     bl_description = "Run Gaussian Splatting externally and save paths to PLY and camera.json"
     bl_options = {'REGISTER'}
 
+    @classmethod
+    def poll(cls, context):
+        paths = context.scene.gblend_project_paths
+        p = getattr(paths, "data_dir", "")
+        return bool(p and os.path.isdir(p))
+    
     def execute(self, context):
         scene = context.scene
-        dataset_path = scene.gblend_data_path
+        paths = scene.gblend_project_paths
 
-        if not os.path.isdir(dataset_path):
-            self.report({'ERROR'}, "Invalid dataset path")
-            return {'CANCELLED'}
+        dataset_path = paths.data_dir
 
         try:
             job_id = str(uuid.uuid4())[:8]
@@ -41,14 +46,14 @@ class GBLEND_OT_generate_scene(bpy.types.Operator):
             with open(zip_output_path, "wb") as f:
                 f.write(response.content)
 
-            output_dir = os.path.join(scene.gblend_project_dir, "3dgs_output")
+            output_dir = os.path.join(paths.project_root, "3dgs_output")
             os.makedirs(output_dir, exist_ok=True)
 
             with zipfile.ZipFile(zip_output_path, 'r') as zip_ref:
                 zip_ref.extractall(output_dir)
 
-            scene.gblend_gaussian_output_dir = output_dir
-            on_gaussian_folder_changed(scene, context)
+            paths.gs_output_dir = output_dir
+            on_gaussian_folder_changed(paths, context)
 
             for window in bpy.context.window_manager.windows:
                 for area in window.screen.areas:

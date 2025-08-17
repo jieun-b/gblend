@@ -1,8 +1,9 @@
 import bpy
+import os
 from collections import namedtuple
 from mathutils import Matrix, Quaternion
 
-from .utils import add_camera_object, compute_camera_matrix_world, compute_field_of_view
+from .utils import copy_camera_object, compute_field_of_view, load_background_image
 
 _CameraIntrinsics = namedtuple("CameraIntrinsics", "field_of_view shift_x shift_y")
 
@@ -65,6 +66,7 @@ def _set_fcurve_interpolation(some_obj, interpolation_type="LINEAR"):
         for kf in fcurve.keyframe_points:
             kf.interpolation = interpolation_type
 
+
 def _add_transformation_animation(
     animated_obj_name,
     transformations_sorted,
@@ -79,36 +81,20 @@ def _add_transformation_animation(
     animated_obj = bpy.data.objects[animated_obj_name]
 
     for index, transformation in enumerate(transformations_sorted):
-        # log_report('INFO', 'index: ' + str(index), op)
-        # log_report('INFO', 'transformation: ' + str(transformation), op)
-
         current_keyframe_index = (index + 1) * step_size
 
         if transformation is None:
             continue
 
-        # A direct assignment of a numpy array leads to incorrect results!
-        animated_obj.matrix_world = Matrix(transformation)
-
-        animated_obj.keyframe_insert(
-            data_path="location", index=-1, frame=current_keyframe_index
-        )
-
-        # Don't use euler rotations, they show too many discontinuties
-        # animated_obj.keyframe_insert(
-        #   data_path="rotation_euler",
-        #   index=-1,
-        #   frame=current_keyframe_index)
-
+        loc, rot, _ = Matrix(transformation).decompose()
+        animated_obj.location = loc
         animated_obj.rotation_mode = "QUATERNION"
-        animated_obj.keyframe_insert(
-            data_path="rotation_quaternion",
-            index=-1,
-            frame=current_keyframe_index,
-        )
+        animated_obj.rotation_quaternion = rot
+
+        animated_obj.keyframe_insert(data_path="location", index=-1, frame=current_keyframe_index)
+        animated_obj.keyframe_insert(data_path="rotation_quaternion", index=-1, frame=current_keyframe_index)
 
         if remove_rotation_discontinuities:
-            # q and -q represent the same rotation
             _remove_quaternion_discontinuities(animated_obj)
 
         if interpolation_type is not None:
@@ -139,47 +125,54 @@ def _add_camera_intrinsics_animation(
         )
         animated_obj.data.keyframe_insert(
             data_path="shift_y", index=-1, frame=current_keyframe_index
-        )
+        ) 
 
 
 def add_camera_animation(
     cameras,
-    parent_collection,
-    animation_frame_source="ORIGINAL",
+    animated_camera=None,
+    parent_collection=None,
     number_interpolation_frames=0,
     interpolation_type="LINEAR",
     remove_rotation_discontinuities=True,
 ):
-    """Add an animated camera from a set of reconstructed cameras."""
-    if animation_frame_source == "ORIGINAL":
-        number_interpolation_frames = 0
-
-    some_cam = cameras[0]
-    cam_obj = add_camera_object(
-        some_cam, "Animated Camera", parent_collection
-    )
-
     cameras_sorted = sorted(
         cameras,
-        key=lambda cam: int("".join(filter(str.isdigit, cam["image_name"])))
+        key=lambda cam: cam.name
     )
+
+    if animated_camera:
+        animated_camera.animation_data_clear()
+    else:
+        some_cam = cameras[0]
+        if parent_collection is None:
+            parent_collection = bpy.data.collections.get("Collection")
+        cam_obj = copy_camera_object(
+            some_cam, "Animated Camera", parent_collection
+        )
+        if hasattr(some_cam.data, "background_images") and some_cam.data.background_images:
+            bg = some_cam.data.background_images[0]
+            if bg.image:
+                bg_image = bpy.data.images.load(bg.image.filepath)
+                load_background_image(bg_image, cam_obj)
+        animated_camera=cam_obj
 
     transformations_sorted = []
     camera_intrinsics_sorted = []
 
     for cam in cameras_sorted:
-        matrix_world = compute_camera_matrix_world(cam["position"], cam["rotation"])
+        matrix_world = cam.matrix_world.copy()  
 
-        fov = compute_field_of_view(cam)
-        shift_x = (cam["cx"] - cam["width"] / 2.0) / cam["width"]
-        shift_y = (cam["cy"] - cam["height"] / 2.0) / cam["height"]
+        fov = compute_field_of_view(cam.data)
+        shift_x = (cam.data["cx"] - cam.data["width"] / 2.0) / cam.data["width"]
+        shift_y = (cam.data["cy"] - cam.data["height"] / 2.0) / cam.data["height"]
         camera_intrinsics = _CameraIntrinsics(fov, shift_x, shift_y)
 
         transformations_sorted.append(matrix_world)
         camera_intrinsics_sorted.append(camera_intrinsics)
 
     _add_transformation_animation(
-        animated_obj_name=cam_obj.name,
+        animated_obj_name=animated_camera.name,
         transformations_sorted=transformations_sorted,
         number_interpolation_frames=number_interpolation_frames,
         interpolation_type=interpolation_type,
@@ -187,7 +180,7 @@ def add_camera_animation(
     )
 
     _add_camera_intrinsics_animation(
-        animated_obj_name=cam_obj.name,
+        animated_obj_name=animated_camera.name,
         intrinsics_sorted=camera_intrinsics_sorted,
         number_interpolation_frames=number_interpolation_frames,
     )

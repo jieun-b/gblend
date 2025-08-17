@@ -1,25 +1,31 @@
-# gblend_addon/operators/align_scene.py
-
 import bpy
 import os
-import json
 import random
 import requests
 import tempfile
-import subprocess
 from PIL import Image
 from io import BytesIO
 from pathlib import Path
 
-from gblend_addon.tasks import setup_ground
+from gblend_addon.core import setup_ground
 
-class GBLEND_OT_align_scene_to_ground(bpy.types.Operator):
+class GBLEND_OT_scene_align_to_ground(bpy.types.Operator):
     bl_idname = "gblend.align_scene_to_ground"
     bl_label = "Align Scene to Ground"
     bl_description = "Use Grounded SAM to estimate ground plane and align scene automatically"
-
+    
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        settings = scene.gblend_scene_settings
+        obj_name = getattr(settings, "scene_name", "")
+        return bool(obj_name and obj_name in bpy.data.objects)
+    
     def execute(self, context):
-        image_dir = Path(context.scene.gblend_data_path) / "images"
+        # Use new property group for data_dir
+        paths = context.scene.gblend_project_paths
+        settings = context.scene.gblend_scene_settings
+        image_dir = Path(getattr(paths, "data_dir", "")) / "images"
         all_images = list(image_dir.glob("*.jpg")) + list(image_dir.glob("*.png"))
 
         if len(all_images) < 3:
@@ -65,7 +71,7 @@ class GBLEND_OT_align_scene_to_ground(bpy.types.Operator):
             setup_ground(
                 cameras=cameras,
                 animated_camera=animated_camera,
-                obj_name="point_cloud",
+                obj_name=getattr(settings, "scene_name", ""),
                 mask_dict=mask_dict  # {Path: mask_path}
             )
             self.report({'INFO'}, "Ground plane estimated and scene aligned.")

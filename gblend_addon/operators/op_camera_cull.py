@@ -1,0 +1,127 @@
+import bpy
+import bmesh
+from mathutils import Vector
+from bpy_extras.object_utils import world_to_camera_view
+
+class GBLEND_OT_camera_cull_light(bpy.types.Operator):
+    bl_idname = "gblend.camera_cull_light"
+    bl_label = "Camera Cull (Light, conservative)"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    padding: bpy.props.FloatProperty(name="Padding (NDC)", default=0.20, min=0.0, max=0.5)
+    closer_than_m: bpy.props.FloatProperty(name="Closer Than (m)", default=0.0, min=0.0)
+    sample_frames: bpy.props.IntProperty(name="Sample Frames", default=5, min=3, max=9)
+    use_timeline_range: bpy.props.BoolProperty(name="Use Timeline Range", default=True)
+
+    @classmethod
+    def poll(cls, context):
+        s = context.scene
+        name = getattr(s.gblend_scene_settings, "scene_name", "")
+        return bool(name and name in bpy.data.objects)
+
+    def execute(self, context):
+        scene = context.scene
+        settings = scene.gblend_scene_settings
+
+        animated_camera = bpy.data.objects.get("Animated Camera")
+
+        if animated_camera and animated_camera.type == 'CAMERA':
+            scene.camera = animated_camera
+            cam = scene.camera
+            self.report({'INFO'}, f"Scene camera set to {animated_camera.name}")
+        else:
+            self.report({'WARNING'}, "Animated Camera not found or not a camera object")
+
+        obj_name = getattr(settings, "scene_name", "") or ""
+        obj = bpy.data.objects.get(obj_name) if obj_name else context.object
+        if obj is None:
+            self.report({'ERROR'}, "대상 오브젝트를 찾지 못했습니다.")
+            return {'CANCELLED'}
+
+        try:
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            context.view_layer.objects.active = obj
+            obj.sna_kiri3dgs_active_object_enable_active_camera = True
+        except Exception:
+            pass
+
+        me = obj.data
+
+        f0 = int(scene.frame_start)
+        f1 = int(scene.frame_end)
+        if self.use_timeline_range:
+            f0, f1 = int(scene.frame_start), int(scene.frame_end)
+        n = max(3, int(self.sample_frames))
+        frames = [int(round(f0 + i * (f1 - f0) / (n - 1))) for i in range(n)]
+
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        bm.verts.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+
+        if not bm.faces:
+            bm.free()
+            self.report({'INFO'}, "No faces to cull.")
+            return {'CANCELLED'}
+
+        obj_mw = obj.matrix_world
+        xmin, xmax = -self.padding, 1.0 + self.padding
+        ymin, ymax = -self.padding, 1.0 + self.padding
+
+        # ★ z 판정: 카메라 공간 z + clip 범위(패딩 포함)
+        near = float(cam.data.clip_start)   # 예: 0.1
+        far  = float(cam.data.clip_end)     # 예: 1000.0
+        pad_near = max(self.closer_than_m, 0.2 * near)  # 보수적 near 패딩
+        pad_far  = 0.05 * far                              # 약간의 far 여유
+
+        visible_face = [False] * len(bm.faces)
+
+        for fr in frames:
+            scene.frame_set(fr)
+            cam_inv = cam.matrix_world.inverted()
+
+            for fi, f in enumerate(bm.faces):
+                if visible_face[fi]:
+                    continue
+
+                # 정점 중 하나라도 통과하면 keep
+                for v in f.verts:
+                    w = obj_mw @ v.co
+
+                    # 카메라 공간 z (앞이 +)
+                    z_cam = -(cam_inv @ w).z
+                    if z_cam < max(self.closer_than_m, near - pad_near):
+                        continue
+                    if z_cam > (far + pad_far):
+                        continue
+
+                    # 화면 안(x,y)만 NDC로 체크
+                    ndc = world_to_camera_view(scene, cam, w)
+                    if (xmin <= ndc.x <= xmax) and (ymin <= ndc.y <= ymax):
+                        visible_face[fi] = True
+                        break
+
+        print(f"[DEBUG] Visible faces: {sum(visible_face)} / {len(visible_face)}")
+        culled = [f for fi, f in enumerate(bm.faces) if not visible_face[fi]]
+        if culled:
+            bmesh.ops.delete(bm, geom=culled, context='FACES')
+
+        bm.verts.ensure_lookup_table()
+        loose = [v for v in bm.verts if not v.link_faces]
+        if loose:
+            bmesh.ops.delete(bm, geom=loose, context='VERTS')
+
+        bm.to_mesh(me)
+        me.update()
+        bm.free()
+
+        for win in bpy.context.window_manager.windows:
+            for area in win.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
+
+        self.report({'INFO'},
+                    f"CameraCull(light): removed {len(culled)} faces "
+                    f"(frames={frames}, pad={self.padding}, near={self.closer_than_m}m)")
+        return {'FINISHED'}

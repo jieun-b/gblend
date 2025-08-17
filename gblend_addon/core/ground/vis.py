@@ -3,9 +3,9 @@ import bmesh
 import numpy as np
 from PIL import Image, ImageDraw
 from mathutils import Vector
-from ..shared import add_collection
+from ..utils import add_collection
 
-def draw_sampled_points(mask_path, mask_shape, sampled_pixels):
+def draw_points(mask_path, mask_shape, sampled_pixels):
     vis_img = Image.new("RGB", (mask_shape[1], mask_shape[0]), color=(0, 0, 0))
     draw = ImageDraw.Draw(vis_img)
     for x, y in sampled_pixels:
@@ -17,7 +17,7 @@ def draw_sampled_points(mask_path, mask_shape, sampled_pixels):
     print(f"[INFO] Saved sampled points image: {save_path}")
 
 
-def draw_rays_from_pixels(cam_name, ray_origin, ray_dir, i, length=10.0, color=(1, 0, 0)):
+def draw_rays(cam_name, ray_origin, ray_dir, i, length=10.0, color=(1, 0, 0)):
     collection = add_collection(f"Rays_Cam_{cam_name}", parent_collection=bpy.context.scene.collection)
 
     start = Vector(ray_origin)
@@ -39,7 +39,7 @@ def draw_rays_from_pixels(cam_name, ray_origin, ray_dir, i, length=10.0, color=(
     obj.color = (*color, 1.0)
 
 
-def draw_camera_pixel_points(cam, pixels, distance=1.0, name="PixelPoints"):
+def draw_pixels(cam, pixels, distance=1.0, name="PixelPoints"):
     mesh = bpy.data.meshes.new(f"{name}_{cam.name}")
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
@@ -70,7 +70,7 @@ def draw_camera_pixel_points(cam, pixels, distance=1.0, name="PixelPoints"):
     return obj
 
 
-def visualize_points(points, name="GroundPoints", limit=500):
+def show_points(points, name="GroundPoints", limit=500):
     if limit is not None and len(points) > limit:
         indices = np.random.choice(len(points), size=limit, replace=False)
         points = points[indices]

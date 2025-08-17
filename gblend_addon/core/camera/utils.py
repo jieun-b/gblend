@@ -1,7 +1,7 @@
 from mathutils import Vector, Matrix
 import math
 import bpy
-from ..shared import add_obj
+from ..utils import add_obj
 
 def compute_field_of_view(camera):
     sensor_extent = max(camera["width"], camera["height"])
@@ -40,6 +40,17 @@ def add_camera_object(
     camera_object.matrix_world = compute_camera_matrix_world(
         camera["position"], camera["rotation"]
     )
+    return camera_object
+
+def copy_camera_object(
+    camera,
+    camera_name,
+    camera_collection,
+):
+    camera_object = camera.copy()
+    camera_object.data = camera.data.copy()
+    camera_object.name = camera_name
+    camera_collection.objects.link(camera_object)
     return camera_object
 
 def compute_camera_matrix_world(position, rotation, fix_forward=True):

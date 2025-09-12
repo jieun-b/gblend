@@ -1,4 +1,6 @@
 import os
+import bpy
+
 
 def find_colmap_dataset(data_root):
     if not os.path.isdir(data_root):
@@ -23,6 +25,7 @@ def find_gaussian_outputs(root):
         ply_path = ply_candidates[0]
     return ply_path, camera_json
 
+
 def on_project_folder_changed(self, context):
     root = self.project_root
     if not os.path.isdir(root):
@@ -46,8 +49,23 @@ def on_gaussian_folder_changed(self, context):
     ply_path, json_path = find_gaussian_outputs(folder)
     if ply_path:
         self.ply_path = ply_path
-        # Set scene_name in gblend_scene_settings to the PLY file's base name
         scene_settings = context.scene.gblend_scene_settings
         scene_settings.scene_name = os.path.splitext(os.path.basename(ply_path))[0]
     if json_path:
         self.camera_path = json_path
+
+
+def update_selected_camera(self, context):
+    camera_name = getattr(self, "start_camera", None) or getattr(self, "end_camera", None)
+    cam = bpy.data.objects.get(camera_name)
+    if cam:
+        bpy.ops.object.select_all(action='DESELECT')
+        cam.select_set(True)
+        context.view_layer.objects.active = cam
+
+def camera_enum_items(_, context):
+    return [
+        (obj.name, obj.name, "")
+        for obj in bpy.data.objects
+        if obj.type == 'CAMERA' and obj.name != "Animated Camera"
+    ]

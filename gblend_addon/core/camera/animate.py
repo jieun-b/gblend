@@ -70,19 +70,15 @@ def _set_fcurve_interpolation(some_obj, interpolation_type="LINEAR"):
 def _add_transformation_animation(
     animated_obj_name,
     transformations_sorted,
-    number_interpolation_frames,
     interpolation_type=None,
     remove_rotation_discontinuities=True,
 ):
     scene = bpy.context.scene
-    scene.frame_start = 0
-    step_size = number_interpolation_frames + 1
-    scene.frame_end = step_size * len(transformations_sorted)
+    scene.frame_start = 1
+    scene.frame_end = len(transformations_sorted)
     animated_obj = bpy.data.objects[animated_obj_name]
 
-    for index, transformation in enumerate(transformations_sorted):
-        current_keyframe_index = (index + 1) * step_size
-
+    for frame_idx, transformation in enumerate(transformations_sorted, start=1):
         if transformation is None:
             continue
 
@@ -91,8 +87,8 @@ def _add_transformation_animation(
         animated_obj.rotation_mode = "QUATERNION"
         animated_obj.rotation_quaternion = rot
 
-        animated_obj.keyframe_insert(data_path="location", index=-1, frame=current_keyframe_index)
-        animated_obj.keyframe_insert(data_path="rotation_quaternion", index=-1, frame=current_keyframe_index)
+        animated_obj.keyframe_insert(data_path="location", index=-1, frame=frame_idx)
+        animated_obj.keyframe_insert(data_path="rotation_quaternion", index=-1, frame=frame_idx)
 
         if remove_rotation_discontinuities:
             _remove_quaternion_discontinuities(animated_obj)
@@ -102,14 +98,11 @@ def _add_transformation_animation(
 
 
 def _add_camera_intrinsics_animation(
-    animated_obj_name, intrinsics_sorted, number_interpolation_frames,
+    animated_obj_name, intrinsics_sorted
 ):
-    step_size = number_interpolation_frames + 1
     animated_obj = bpy.data.objects[animated_obj_name]
 
-    for index, intrinsics in enumerate(intrinsics_sorted):
-        current_keyframe_index = (index + 1) * step_size
-
+    for frame_idx, intrinsics in enumerate(intrinsics_sorted, start=1):
         if intrinsics is None:
             continue
 
@@ -118,63 +111,65 @@ def _add_camera_intrinsics_animation(
         animated_obj.data.shift_y = intrinsics.shift_y
 
         animated_obj.data.keyframe_insert(
-            data_path="lens", index=-1, frame=current_keyframe_index
+            data_path="lens", index=-1, frame=frame_idx
         )
         animated_obj.data.keyframe_insert(
-            data_path="shift_x", index=-1, frame=current_keyframe_index
+            data_path="shift_x", index=-1, frame=frame_idx
         )
         animated_obj.data.keyframe_insert(
-            data_path="shift_y", index=-1, frame=current_keyframe_index
-        ) 
+            data_path="shift_y", index=-1, frame=frame_idx
+        )
 
 
 def add_camera_animation(
     cameras,
-    animated_camera=None,
     parent_collection=None,
-    number_interpolation_frames=0,
     interpolation_type="LINEAR",
     remove_rotation_discontinuities=True,
 ):
-    cameras_sorted = sorted(
-        cameras,
-        key=lambda cam: cam.name
-    )
+    cameras_sorted = list(cameras)
 
+    animated_camera = bpy.data.objects.get("Animated Camera")
     if animated_camera:
         animated_camera.animation_data_clear()
     else:
-        some_cam = cameras[0]
+        start_cam = cameras_sorted[0]  
         if parent_collection is None:
             parent_collection = bpy.data.collections.get("Collection")
         cam_obj = copy_camera_object(
-            some_cam, "Animated Camera", parent_collection
+            start_cam, "Animated Camera", parent_collection
         )
-        if hasattr(some_cam.data, "background_images") and some_cam.data.background_images:
-            bg = some_cam.data.background_images[0]
+
+        if hasattr(start_cam.data, "background_images") and start_cam.data.background_images:
+            bg = start_cam.data.background_images[0]
             if bg.image:
                 bg_image = bpy.data.images.load(bg.image.filepath)
                 load_background_image(bg_image, cam_obj)
-        animated_camera=cam_obj
+
+        animated_camera = cam_obj
 
     transformations_sorted = []
     camera_intrinsics_sorted = []
 
     for cam in cameras_sorted:
-        matrix_world = cam.matrix_world.copy()  
-
+        matrix_world = cam.matrix_world.copy()
         fov = compute_field_of_view(cam.data)
-        shift_x = (cam.data["cx"] - cam.data["width"] / 2.0) / cam.data["width"]
-        shift_y = (cam.data["cy"] - cam.data["height"] / 2.0) / cam.data["height"]
-        camera_intrinsics = _CameraIntrinsics(fov, shift_x, shift_y)
 
+        width = getattr(cam.data, "width", None)
+        height = getattr(cam.data, "height", None)
+        cx = getattr(cam.data, "cx", width / 2 if width else 0)
+        cy = getattr(cam.data, "cy", height / 2 if height else 0)
+
+        shift_x = (cx - (width / 2.0)) / width if width else 0
+        shift_y = (cy - (height / 2.0)) / height if height else 0
+
+        camera_intrinsics = _CameraIntrinsics(fov, shift_x, shift_y)
         transformations_sorted.append(matrix_world)
         camera_intrinsics_sorted.append(camera_intrinsics)
 
     _add_transformation_animation(
         animated_obj_name=animated_camera.name,
         transformations_sorted=transformations_sorted,
-        number_interpolation_frames=number_interpolation_frames,
         interpolation_type=interpolation_type,
         remove_rotation_discontinuities=remove_rotation_discontinuities,
     )
@@ -182,5 +177,6 @@ def add_camera_animation(
     _add_camera_intrinsics_animation(
         animated_obj_name=animated_camera.name,
         intrinsics_sorted=camera_intrinsics_sorted,
-        number_interpolation_frames=number_interpolation_frames,
     )
+
+    return animated_camera

@@ -3,7 +3,7 @@ import bpy
 from bpy.types import PropertyGroup
 from bpy.props import StringProperty, EnumProperty, IntProperty
 
-from .utils import on_gaussian_folder_changed, on_project_folder_changed
+from .utils import on_gaussian_folder_changed, on_project_folder_changed, update_selected_camera, camera_enum_items
 
 class GBlendProjectPathsProps(PropertyGroup):
     project_root: StringProperty(
@@ -24,8 +24,8 @@ class GBlendProjectPathsProps(PropertyGroup):
         update=on_gaussian_folder_changed
     )
     output_dir: StringProperty(
-        name="Render Output Folder",
-        description="Directory to save rendered images or videos",
+        name="Output Folder",
+        description="Directory to save generated results",
         subtype='DIR_PATH',
         default=""
     )
@@ -56,26 +56,25 @@ class GBlendSceneSettingsProps(PropertyGroup):
         description="Name for the imported PLY object",
         default=""
     )
-    frame_start: IntProperty(
-        name="Frame Start",
-        description="Start frame for animated camera",
-        default=1,
-        min=1
+    import_object_name: StringProperty(
+        name="Import Object Name",
+        description="Name of the object to download or place in the scene",
+        default=""
     )
-    frame_end: IntProperty(
-        name="Frame End",
-        description="End frame for animated camera",
-        min=1
+    start_camera: bpy.props.EnumProperty(
+        name="Start Camera",
+        items=camera_enum_items,
+        update=update_selected_camera
     )
-    stride: IntProperty(
-        name="Keyframe Stride",
-        description="Insert keyframes every Nth camera pose",
-        default=10, min=1
+    end_camera: bpy.props.EnumProperty(
+        name="End Camera",
+        items=camera_enum_items,
+        update=update_selected_camera
     )
     interpolation_frames: IntProperty(
         name="Interpolation Frames",
         description="Frames to insert between camera keyframes",
-        default=0, min=0
+        default=10, min=0
     )
     render_mode: EnumProperty(
         name="Render Mode",
@@ -85,7 +84,42 @@ class GBlendSceneSettingsProps(PropertyGroup):
         ],
         default='EDIT'
     )
-    
+    gaussian_url: bpy.props.StringProperty(
+        name="3DGS URL",
+        default="http://localhost:8000",
+        description="Server endpoint for Gaussian Splatting",
+    )
+    grounded_sam_url: bpy.props.StringProperty(
+        name="Grounded SAM URL",
+        default="http://localhost:8001",
+        description="Server endpoint for Grounded SAM used to estimate ground plane",
+    )
+    object_import_url: bpy.props.StringProperty(
+        name="Object Import URL",
+        default="http://localhost:8002",
+        description="Server endpoint for downloading GLB objects",
+    )
+    save_rgb: bpy.props.BoolProperty(
+        name="Save RGB",
+        default=True,
+        description="Save RGB images"
+    )
+    save_depth: bpy.props.BoolProperty(
+        name="Save Depth",
+        default=False,
+        description="Save depth maps"
+    )
+    save_normal: bpy.props.BoolProperty(
+        name="Save Normal",
+        default=False,
+        description="Save normal maps"
+    )
+    save_segmentation: bpy.props.BoolProperty(
+        name="Save Segmentation",
+        default=False,
+        description="Save object/material segmentation masks"
+    )
+
 _classes = (
     GBlendProjectPathsProps,
     GBlendSceneSettingsProps,

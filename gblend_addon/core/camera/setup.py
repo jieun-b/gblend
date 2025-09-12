@@ -3,7 +3,7 @@ import bpy
 import json
 
 from .animate import add_camera_animation
-from .utils import add_camera_object, load_background_image
+from .utils import add_camera_object, load_background_image, compute_camera_path
 from ..utils import add_collection
 
 def add_cameras(cam_dicts, parent_collection, add_background_images=False, camera_collection_name="Cameras"):
@@ -39,30 +39,39 @@ def setup_cameras(json_path, image_dir, parent_collection):
             "position": data["position"],
         }
         cam_dicts.append(cam_dict)
-
-    scene_settings = bpy.context.scene.gblend_scene_settings
-    if scene_settings.frame_end == 0:
-        scene_settings.frame_end = len(cam_dicts)
         
     add_cameras(cam_dicts, parent_collection, add_background_images=True)
 
 
-def setup_animated_camera(cameras, animated_camera=None):
+def setup_animated_camera(cameras, parent_collection):
     scene_settings = bpy.context.scene.gblend_scene_settings
-    stride = scene_settings.stride
-    frame_start = scene_settings.frame_start
-    frame_end = scene_settings.frame_end
     number_interpolation_frames = scene_settings.interpolation_frames
 
-    filtered_cameras = [
-        cam for i, cam in enumerate(cameras)
-        if frame_start <= (i + 1) <= frame_end  # 1-based index
-    ]
+    start_name = scene_settings.start_camera
+    end_name = scene_settings.end_camera
 
-    sampled_cameras = [cam for i, cam in enumerate(filtered_cameras) if i % stride == 0]
+    if not (start_name and end_name):
+        print("[ERROR] Start or End camera not set.")
+        return None
 
-    add_camera_animation(sampled_cameras, animated_camera, number_interpolation_frames=number_interpolation_frames)
+    start_cam = bpy.data.objects.get(start_name)
+    end_cam = bpy.data.objects.get(end_name)
 
-    animated_camera = bpy.data.objects.get("Animated Camera")
+    if not start_cam or not end_cam:
+        print(f"[ERROR] Could not find cameras: {start_name}, {end_name}")
+        return None
+
+    path_cameras = compute_camera_path(
+        start_cam, end_cam, number_interpolation_frames=number_interpolation_frames, parent_collection=parent_collection
+    )
+
+    animated_camera = add_camera_animation(
+        path_cameras,
+    )
+
     if animated_camera:
         bpy.context.scene.camera = animated_camera
+        print(f"[INFO] Animated Camera generated from {start_name} → {end_name} "
+              f"with {len(path_cameras)} keyframes.")
+
+    return animated_camera

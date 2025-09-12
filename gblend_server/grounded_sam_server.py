@@ -51,6 +51,51 @@ async def grounded_sam_predict(image: UploadFile = File(...)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+# def grounded_sam_floor(image_path, save_dir):
+#     sam2_model = build_sam2(SAM2_MODEL_CONFIG, SAM2_CHECKPOINT, device=DEVICE)
+#     sam2_predictor = SAM2ImagePredictor(sam2_model)
+#     grounding_model = load_model(
+#         model_config_path=GROUNDING_DINO_CONFIG,
+#         model_checkpoint_path=GROUNDING_DINO_CHECKPOINT,
+#         device=DEVICE
+#     )
+
+#     image_source, image = load_image(image_path)
+#     sam2_predictor.set_image(image_source)
+#     h, w, _ = image_source.shape
+
+#     boxes, confidences, labels = predict(
+#         model=grounding_model,
+#         image=image,
+#         caption="floor.",
+#         box_threshold=BOX_THRESHOLD,
+#         text_threshold=TEXT_THRESHOLD,
+#         device=DEVICE
+#     )
+
+#     if boxes.shape[0] == 0:
+#         raise ValueError("No 'floor' detected")
+
+#     boxes = boxes * torch.Tensor([w, h, w, h])
+#     input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
+
+#     with torch.autocast(device_type=DEVICE, dtype=torch.bfloat16):
+#         masks, scores, logits = sam2_predictor.predict(
+#             point_coords=None,
+#             point_labels=None,
+#             box=input_boxes,
+#             multimask_output=False,
+#         )
+
+#     masks = masks.squeeze(1) if masks.ndim == 4 else masks
+#     idx = int(np.argmax(scores))
+#     mask = (masks[idx] * 255).astype(np.uint8)
+
+#     mask_path = os.path.join(save_dir, "mask.png")
+#     cv2.imwrite(mask_path, mask)
+#     logger.info(f"[GroundedSAM] Mask saved: {mask_path}")
+#     return mask_path
+
 def grounded_sam_floor(image_path, save_dir):
     sam2_model = build_sam2(SAM2_MODEL_CONFIG, SAM2_CHECKPOINT, device=DEVICE)
     sam2_predictor = SAM2ImagePredictor(sam2_model)
@@ -64,17 +109,18 @@ def grounded_sam_floor(image_path, save_dir):
     sam2_predictor.set_image(image_source)
     h, w, _ = image_source.shape
 
+    caption = "floor, ground, ground plane, floor surface"
     boxes, confidences, labels = predict(
         model=grounding_model,
         image=image,
-        caption="floor.",
+        caption=caption,
         box_threshold=BOX_THRESHOLD,
         text_threshold=TEXT_THRESHOLD,
         device=DEVICE
     )
 
     if boxes.shape[0] == 0:
-        raise ValueError("No 'floor' detected")
+        raise ValueError("No floor-like region detected")
 
     boxes = boxes * torch.Tensor([w, h, w, h])
     input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
@@ -91,6 +137,24 @@ def grounded_sam_floor(image_path, save_dir):
     idx = int(np.argmax(scores))
     mask = (masks[idx] * 255).astype(np.uint8)
 
+    ys, xs = np.where(mask > 127)
+    if len(ys) == 0:
+        raise ValueError("Empty mask from SAM")
+
+    center_y = np.median(ys)
+    if center_y < h * 0.5:
+        raise ValueError("Mask too high in image (likely wall/ceiling)")
+
+    area_ratio = (mask > 127).sum() / (h * w)
+    if area_ratio < 0.01:
+        raise ValueError("Mask area too small for floor candidate")
+
+    min_x, max_x = xs.min(), xs.max()
+    min_y, max_y = ys.min(), ys.max()
+    bbox_w, bbox_h = max_x - min_x, max_y - min_y
+    if bbox_h > bbox_w:
+        raise ValueError("Mask looks vertical (likely a wall)")
+    
     mask_path = os.path.join(save_dir, "mask.png")
     cv2.imwrite(mask_path, mask)
     logger.info(f"[GroundedSAM] Mask saved: {mask_path}")

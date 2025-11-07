@@ -4,17 +4,8 @@
 
 본 디렉토리에는 **GBlend Add-on**과 통신하는 3개의 FastAPI 서버가 포함되어 있으며, 각 서버는 독립된 Docker 환경에서 실행되어 Blender Add-on과 REST API로 연동됩니다.
 
-- [공통 실행 절차](#공통-실행-절차) 
-- [서버별 상세 안내](#서버별-상세-안내) 
-    - [Gaussian Splatting 서버](#1-gaussian-splatting-서버) 
-    - [Grounded-SAM-2 서버](#2-grounded-sam-2-서버) 
-    - [Objaverse 서버](#3-objaverse-서버)
 
----
-
-## 공통 실행 절차
-
-### 사전 요구사항
+## 사전 요구사항
 
 1. **Docker 설치**
    ```bash
@@ -27,7 +18,7 @@
    - Gaussian 서버와 Grounded-SAM 서버는 CUDA가 필요합니다.
    - GPU 확인: `nvidia-smi`
 
----
+
 
 ## 서버별 상세 안내
 

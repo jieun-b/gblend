@@ -2,8 +2,15 @@
 
 이 문서는 GBlend 프로젝트의 **서버 실행 및 구성 방법**을 안내합니다.  
 
-본 디렉토리에는 **GBlend Add-on**과 통신하는 3개의 FastAPI 서버가 포함되어 있습니다. 각 서버는 독립된 Docker 환경에서 실행되며, Blender Add-on에서 REST API를 통해 접근할 수 있습니다.
+본 디렉토리에는 **GBlend Add-on**과 통신하는 3개의 FastAPI 서버가 포함되어 있으며, 각 서버는 독립된 Docker 환경에서 실행되어 Blender Add-on과 REST API로 연동됩니다.
 
+- [공통 실행 절차](#공통-실행-절차) 
+- [서버별 상세 안내](#서버별-상세-안내) 
+    - [Gaussian Splatting 서버](#1-gaussian-splatting-서버) 
+    - [Grounded-SAM-2 서버](#2-grounded-sam-2-서버) 
+    - [Objaverse 서버](#3-objaverse-서버)
+
+---
 
 ## 공통 실행 절차
 
@@ -20,11 +27,9 @@
    - Gaussian 서버와 Grounded-SAM 서버는 CUDA가 필요합니다.
    - GPU 확인: `nvidia-smi`
 
+---
 
 ## 서버별 상세 안내
-  - [Gaussian Splatting 서버](#1-gaussian-splatting-서버)
-  - [Grounded-SAM-2 서버](#2-grounded-sam-2-서버)
-  - [Objaverse 서버](#3-objaverse-서버)
 
 ### 서버 비교 요약
 
@@ -94,17 +99,8 @@ docker build -t objaverse-server .
 docker run -d --name objaverse-container -v $(pwd)/data:/home/data -p 8002:8002 objaverse-server
 ```
 
-**실행 방법 설명**:
-- GPU 불필요: CLIP 모델은 CPU에서도 실행 가능하며, GLB 파일 다운로드는 네트워크 작업입니다
-- `-v $(pwd)/data:/home/data`: **볼륨 마운트가 필수입니다**
-  - 다운로드한 메타데이터와 GLB 파일을 호스트에 저장하여 컨테이너 재시작 후에도 재사용 가능
-  - 메타데이터 파일은 크기가 크므로(수백 MB) 매번 다운로드하지 않도록 캐싱
-  - `app.py`의 `setup_objaverse("data/objaverse_cache", query)` 경로와 매칭됩니다
-
-
 #### API
 
 - **엔드포인트**: `GET /download_glb/?query=<검색어>`
 - **입력**: 검색어 (예: `chair`, `car` 등)
 - **출력**: 해당 객체의 GLB 3D 모델 파일
-

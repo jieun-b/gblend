@@ -7,14 +7,14 @@
 
 ## 사전 요구사항
 
-1. **Docker 설치**
+### 1. Docker 설치
    ```bash
    # Docker 설치 확인
    docker --version
    docker-compose --version
    ```
 
-2. **NVIDIA GPU 및 CUDA 지원**
+### 2. NVIDIA GPU 및 CUDA 지원
    - Gaussian 서버와 Grounded-SAM 서버는 CUDA가 필요합니다.
    - GPU 확인: `nvidia-smi`
 

@@ -1,7 +1,6 @@
 # GBlend Server 실행 가이드
 
-이 문서는 GBlend 프로젝트의 **서버 실행 및 구성 방법**을 안내합니다.  
-
+이 문서는 GBlend 프로젝트의 **서버 실행 및 구성 방법**을 안내합니다. 
 본 디렉토리에는 **GBlend Add-on**과 통신하는 3개의 FastAPI 서버가 포함되어 있으며, 각 서버는 독립된 Docker 환경에서 실행되어 Blender Add-on과 REST API로 연동됩니다.
 
 
@@ -33,11 +32,9 @@
 
 ### 1. Gaussian Splatting 서버
 
-**포트**: `8000`  
-**역할**: COLMAP 데이터셋을 입력받아 3D Gaussian Splatting 모델을 학습하는 서버입니다.  
+COLMAP 데이터셋을 입력받아 3D Gaussian Splatting 모델을 학습하는 서버입니다.  
 학습 완료 후 결과를 zip 파일 형태로 반환합니다.
-
-
+ 
 #### 실행 방법
 
 ```bash
@@ -55,8 +52,7 @@ docker run -d --name gaussian-container --gpus all -p 8000:8000 gaussian-server
 
 ### 2. Grounded-SAM-2 서버
 
-**포트**: `8001`  
-**역할**: 이미지를 입력받아 바닥 영역을 자동 탐지하고 마스크 이미지를 생성하는 서버입니다.  
+이미지를 입력받아 바닥 영역을 자동 탐지하고 마스크 이미지를 생성하는 서버입니다.  
 Grounding DINO와 SAM2 모델을 활용하여 바닥 영역을 정밀하게 분리합니다.
 
 
@@ -77,8 +73,7 @@ docker run -d --name grounded-sam-container --gpus all -p 8001:8001 grounded-sam
 
 ### 3. Objaverse 서버
 
-**포트**: `8002`  
-**역할**: 텍스트 쿼리를 입력받아 Objaverse 데이터셋에서 3D GLB 모델을 검색하고 다운로드하는 서버입니다.  
+텍스트 쿼리를 입력받아 Objaverse 데이터셋에서 3D GLB 모델을 검색하고 다운로드하는 서버입니다.  
 CLIP 모델을 이용해 텍스트 의미와 유사한 객체를 찾아 반환합니다.
 
 

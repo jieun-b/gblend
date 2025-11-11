@@ -1,6 +1,6 @@
 ## Example Scenes
 
-Due to dataset license restrictions, example scenes are not included in this repository.  
-You can download the `tandt_db.zip` dataset directly from the Hugging Face mirror below:
+라이선스 문제로 예제 장면 파일은 이 저장소에 포함되어 있지 않습니다.
+`tandt_db.zip` 데이터셋은 아래 Hugging Face 링크에서 직접 다운로드할 수 있습니다.
 
-[Download from Hugging Face](https://huggingface.co/camenduru/gaussian-splatting/blob/main/tandt_db.zip)
+[Hugging Face에서 다운로드](https://huggingface.co/camenduru/gaussian-splatting/blob/main/tandt_db.zip)

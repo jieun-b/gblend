@@ -7,10 +7,12 @@ ARG TORCH_ARCH="7.0;7.5;8.0;8.6"
 ENV AM_I_DOCKER=True
 ENV BUILD_WITH_CUDA="${USE_CUDA}"
 ENV TORCH_CUDA_ARCH_LIST="${TORCH_ARCH}"
-ENV CUDA_HOME=/usr/local/cuda-12.1/
+ENV CUDA_HOME=/usr/local/cuda-12.1
 # Ensure CUDA is correctly set up
-ENV PATH=/usr/local/cuda-12.1/bin:${PATH}
-ENV LD_LIBRARY_PATH=/usr/local/cuda-12.1/lib64:${LD_LIBRARY_PATH}
+ENV PATH=${CUDA_HOME}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/opt/conda/lib/python3.10/site-packages/torch/lib
+
 
 # Install required packages and specific gcc/g++
 RUN apt-get update && apt-get install --no-install-recommends wget ffmpeg=7:* \
@@ -27,7 +29,6 @@ RUN pip install --no-cache-dir -r /home/requirements.txt
 
 COPY app.py /home/app.py
 
-
 RUN git clone --depth 1 https://github.com/IDEA-Research/Grounded-SAM-2.git
 WORKDIR /home/Grounded-SAM-2
 
@@ -37,15 +38,16 @@ RUN python -m pip install --upgrade pip "setuptools>=62.3.0,<75.9" wheel numpy \
     opencv-python transformers supervision pycocotools addict yapf timm
 
 # Install segment_anything package in editable mode
-RUN python -m pip install -e .
 
+RUN sed -i "s/-gencode=arch=compute_120,code=sm_120/-gencode=arch=compute_75,code=sm_75/" setup.py
 
-RUN sed -i '/-gencode=arch=compute_120,code=sm_120/d' grounding_dino/setup.py && \
-    cd grounding_dino && \
+RUN pip install -e .
+RUN pip install --no-build-isolation -e grounding_dino
+
+RUN cd grounding_dino && \
     bash ../checkpoints/download_ckpts.sh && \
-    bash ../gdino_checkpoints/download_ckpts.sh && \
-    CC=gcc-10 CXX=g++-10 python setup.py install
-
+    bash ../gdino_checkpoints/download_ckpts.sh 
+    
 
 WORKDIR /home
 ENV PYTHONPATH=/home

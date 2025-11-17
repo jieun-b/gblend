@@ -38,19 +38,13 @@ RUN python -m pip install --upgrade pip "setuptools>=62.3.0,<75.9" wheel numpy \
     opencv-python transformers supervision pycocotools addict yapf timm
 
 # Install segment_anything package in editable mode
-
-RUN sed -i "s/-gencode=arch=compute_120,code=sm_120/-gencode=arch=compute_75,code=sm_75/" setup.py
-
 RUN pip install -e .
 RUN pip install --no-build-isolation -e grounding_dino
 
-RUN cd grounding_dino && \
-    bash ../checkpoints/download_ckpts.sh && \
-    bash ../gdino_checkpoints/download_ckpts.sh 
+RUN cd checkpoints && bash download_ckpts.sh
+RUN cd gdino_checkpoints && bash download_ckpts.sh
     
-
-WORKDIR /home
-ENV PYTHONPATH=/home
+ENV PYTHONPATH="/home:/home/Grounded-SAM-2"
 
 EXPOSE 8001
-CMD ["uvicorn", "app:app", "--app-dir", "/home", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8001"]

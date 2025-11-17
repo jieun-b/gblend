@@ -22,12 +22,11 @@ from sam2.sam2_image_predictor import SAM2ImagePredictor
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("gblend_server")
 
-# app.py (grounded_sam)
-MODEL_ROOT = os.environ.get("MODEL_ROOT", "/home/Grounded-SAM-2")
 
-SAM2_CHECKPOINT = os.path.join(MODEL_ROOT, "checkpoints/sam2.1_hiera_large.pt")
-GROUNDING_DINO_CONFIG = os.path.join(MODEL_ROOT, "grounding_dino/groundingdino/config/GroundingDINO_SwinT_OGC.py")
-GROUNDING_DINO_CHECKPOINT = os.path.join(MODEL_ROOT, "gdino_checkpoints/groundingdino_swint_ogc.pth")
+SAM2_CHECKPOINT = "./checkpoints/sam2.1_hiera_large.pt"
+SAM2_MODEL_CONFIG = "configs/sam2.1/sam2.1_hiera_l.yaml"
+GROUNDING_DINO_CONFIG = "grounding_dino/groundingdino/config/GroundingDINO_SwinT_OGC.py"
+GROUNDING_DINO_CHECKPOINT = "gdino_checkpoints/groundingdino_swint_ogc.pth"
 
 BOX_THRESHOLD = 0.35
 TEXT_THRESHOLD = 0.25

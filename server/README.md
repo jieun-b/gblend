@@ -1,8 +1,7 @@
-# GBlend Server 실행 가이드
+# GBlend 로컬 서버 실행 가이드
 
-이 문서는 GBlend 프로젝트의 **서버 실행 및 구성 방법**을 안내합니다. 
-본 디렉토리에는 **GBlend Add-on**과 통신하는 3개의 FastAPI 서버가 포함되어 있으며, 각 서버는 독립된 Docker 환경에서 실행되어 Blender Add-on과 REST API로 연동됩니다.
-
+이 문서는 GBlend Add-on과 함께 사용할 로컬 서버 실행 방법을 안내합니다.
+GBlend는 CUDA 기반으로 동작하며, 각 기능은 개인 GPU 환경에서 독립적인 FastAPI 서버로 실행됩니다.
 
 ## 사전 요구사항
 
@@ -18,8 +17,9 @@
    - GPU 확인: `nvidia-smi`
 
 
-
 ## 서버별 상세 안내
+
+각 서버는 기본적으로 `localhost` 포트(8000–8002)로 실행되며, Add-on 내부 `config.py` 설정에서 자동으로 연결됩니다.
 
 ### 서버 비교 요약
 

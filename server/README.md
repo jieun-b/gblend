@@ -54,7 +54,7 @@ docker run -d --name gaussian-container --gpus all -p 8000:8000 gaussian-server
 
 이미지를 입력받아 바닥 영역을 자동 탐지하고 마스크 이미지를 생성하는 서버입니다. 
 Grounding DINO와 SAM2 모델을 활용하여 바닥 영역을 정밀하게 분리합니다.
-
+추가로, SAM1 기반의 이미지 세그멘테이션 기능과 MiDaS(DPT-Large) 기반의 깊이(Depth) 맵 추정 기능도 제공합니다.
 
 #### 실행 방법
 
@@ -69,6 +69,14 @@ docker run -d --name grounded-sam-container --gpus all -p 8001:8001 grounded-sam
 - **엔드포인트**: `POST /grounded_sam/`
 - **입력**: 이미지 파일 (`.jpg`, `.png` 등)
 - **출력**: 바닥 영역 마스크 (`mask.png`)
+
+- **엔드포인트**: `POST /segment/`
+- **입력**: 이미지 파일 (`.jpg`, `.png` 등)
+- **출력**: 세그멘테이션 결과 이미지 (`segment.png`)
+
+- **엔드포인트**: `POST /depth/`
+- **입력**: 이미지 파일 (`.jpg`, `.png` 등)
+- **출력**: 정규화된 Depth Map (`depth.png`)
 
 
 ### 3. Objaverse 서버

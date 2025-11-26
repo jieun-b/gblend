@@ -19,6 +19,8 @@ from grounding_dino.groundingdino.util.inference import load_model, load_image, 
 from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 
+from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("gblend_server")
 
@@ -27,6 +29,8 @@ SAM2_CHECKPOINT = "./checkpoints/sam2.1_hiera_large.pt"
 SAM2_MODEL_CONFIG = "configs/sam2.1/sam2.1_hiera_l.yaml"
 GROUNDING_DINO_CONFIG = "grounding_dino/groundingdino/config/GroundingDINO_SwinT_OGC.py"
 GROUNDING_DINO_CHECKPOINT = "gdino_checkpoints/groundingdino_swint_ogc.pth"
+
+SAM1_CHECKPOINT = "./checkpoints/sam_vit_h_4b8939.pth"
 
 BOX_THRESHOLD = 0.35
 TEXT_THRESHOLD = 0.25
@@ -116,3 +120,116 @@ def grounded_sam_floor(image_path, save_dir):
     cv2.imwrite(mask_path, mask)
     logger.info(f"[GroundedSAM] Mask saved: {mask_path}")
     return mask_path
+
+# --------------------
+# Segmentation
+# --------------------
+
+def segment_image(image_path, device="cuda"):
+
+    sam = sam_model_registry["vit_h"](checkpoint=SAM1_CHECKPOINT)
+    sam.to(device=device)
+
+    mask_generator = SamAutomaticMaskGenerator(sam)
+
+    image_bgr = cv2.imread(str(image_path))
+    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+
+    masks = mask_generator.generate(image_rgb)
+
+    seg_map = np.zeros_like(image_rgb)
+    for mask in masks:
+        color = np.random.randint(0, 255, 3, dtype=np.uint8)
+        seg_map[mask["segmentation"]] = color
+
+    return seg_map
+
+
+@app.post("/segment/")
+async def segment(image: UploadFile = File(...)):
+    """SAM1 Automatic Segmentation API"""
+    job_id = str(uuid.uuid4())[:8]
+    tmpdir = Path(f"/tmp/gblend_server/{job_id}")
+    tmpdir.mkdir(parents=True, exist_ok=True)
+
+    image_path = tmpdir / image.filename
+
+    try:
+        with open(image_path, "wb") as f:
+            f.write(await image.read())
+
+        seg_map = segment_image(str(image_path), DEVICE)
+
+        out_path = tmpdir / "segment.png"
+        cv2.imwrite(str(out_path), seg_map)
+
+        return FileResponse(out_path, media_type="image/png", filename="segment.png")
+
+    except Exception as e:
+        logger.error(f"[SAM1] Inference failed: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    
+
+# --------------------------------------------------------
+# MiDaS Depth Estimation
+# --------------------------------------------------------
+def estimate_depth(image_path, device="cuda"):
+    # Load MiDaS model
+    midas = torch.hub.load("intel-isl/MiDaS", "DPT_Large")
+    midas.to(device).eval()
+
+    # MiDaS transforms
+    transforms = torch.hub.load("intel-isl/MiDaS", "transforms")
+    transform = transforms.dpt_transform
+
+    # Load image
+    img = cv2.imread(str(image_path))
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    # Preprocess
+    input_batch = transform(img_rgb).to(device)
+
+    with torch.no_grad():
+        prediction = midas(input_batch)
+        depth = torch.nn.functional.interpolate(
+            prediction.unsqueeze(1),
+            size=img.shape[:2],
+            mode="bicubic",
+            align_corners=False,
+        ).squeeze()
+
+    depth = depth.cpu().numpy().astype(np.float32)
+
+    # Normalize (visualization only)
+    depth_norm = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
+    depth_map = depth_norm.astype(np.uint8)
+
+    return depth, depth_map
+
+
+@app.post("/depth/")
+async def depth(image: UploadFile = File(...)):
+    """MiDaS Depth Estimation API"""
+    job_id = str(uuid.uuid4())[:8]
+    tmpdir = Path(f"/tmp/gblend_server/{job_id}")
+    tmpdir.mkdir(parents=True, exist_ok=True)
+
+    image_path = tmpdir / image.filename
+
+    try:
+        # Save uploaded image
+        with open(image_path, "wb") as f:
+            f.write(await image.read())
+
+        # Run depth estimation
+        depth, depth_map = estimate_depth(str(image_path), DEVICE)
+
+        # Save visualization image
+        out_path = tmpdir / "depth.png"
+        cv2.imwrite(str(out_path), depth_map)
+
+        return FileResponse(out_path, media_type="image/png", filename="depth.png")
+
+    except Exception as e:
+        logger.error(f"[MiDaS] Inference failed: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})

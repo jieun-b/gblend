@@ -4,4 +4,4 @@ GBlend는 Gaussian Splatting으로 복원한 외부 3D 씬을 Blender에 자동�
 Photogrammetry Importer에서 영감을 받아, 카메라 시각화 및 바닥 평면 정렬을 자동화하여 synthetic data 생성 과정을 간소화합니다.
 
 ## Demo
-https://youtu.be/rguLeDei1Rk
+[![YouTube Thumbnail](https://youtu.be/rguLeDei1Rk/hqdefault.jpg)](https://youtu.be/rguLeDei1Rk)

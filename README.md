@@ -35,4 +35,6 @@ GBlend의 전체 기능을 사용하려면 아래 구성 요소가 필요합니�
 6. Camera Cull 실행  
 7. 렌더 설정 후 출력
 
+## Example Output
+
 ![GBlend Scene Outputs](https://github.com/jieun-b/gblend/blob/main/docs/gblend_scene_outputs.png)

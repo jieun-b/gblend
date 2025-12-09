@@ -9,7 +9,7 @@ GBlend는 Gaussian Splatting 기반 3D 씬을 Blender에서 합성 데이터 생
 ## Installation
 
 1. Blender 4.x 다운로드  
-2. [Download Add-on (v0.1.0)](https://github.com/jieun-b/gblend/releases/download/v0.1.0/addon.zip)  
+2. [Download Add-on (v0.1.0)](https://github.com/jieun-b/gblend/releases/tag/v0.1.0)  
 3. Blender → Edit > Preferences → Add-ons → Install  
 4. `addon.zip` 선택  
 5. GBlend 활성화  

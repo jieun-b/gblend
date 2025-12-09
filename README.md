@@ -4,6 +4,8 @@ GBlend는 Gaussian Splatting 기반 3D 씬을 Blender에서 합성 데이터 생
 
 👉 [Demo Video](https://youtu.be/rguLeDei1Rk)
 
+![GBlend UI Overview](https://github.com/jieun-b/gblend/blob/main/docs/gblend_ui_overview.png)
+
 ## Installation
 
 1. Blender 4.x 다운로드  
@@ -20,7 +22,7 @@ GBlend의 전체 기능을 사용하려면 아래 구성 요소가 필요합니�
   👉 https://www.kiriengine.app/blender-addon
 
 - **GBlend Server**  
-  씬 생성, 정렬 등 일부 기능은 외부 서버가 필요합니다.  
+  일부 기능은 Docker 기반의 로컬 서버에서 실행됩니다.  
   👉 서버 설정 가이드: [server/README.md](https://github.com/jieun-b/gblend/blob/main/server/README.md)
 
 ## Quick Start
@@ -32,3 +34,5 @@ GBlend의 전체 기능을 사용하려면 아래 구성 요소가 필요합니�
 5. 객체 텍스트 검색 → GLB 배치  
 6. Camera Cull 실행  
 7. 렌더 설정 후 출력
+
+![GBlend Scene Outputs](https://github.com/jieun-b/gblend/blob/main/docs/gblend_scene_outputs.png)
